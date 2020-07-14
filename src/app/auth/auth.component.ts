@@ -1,10 +1,8 @@
-import { Component, OnInit } from '@angular/core';
-import { Router } from '@angular/router';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { NgForm } from '@angular/forms';
-import { Observable } from 'rxjs';
 import { Store } from '@ngrx/store';
+import { Subscription } from 'rxjs';
 
-import { AuthService, AuthResponseData } from './auth.service';
 import * as fromApp from '../store/app.reducer';
 import * as AuthActions from './store/auth.actions';
 
@@ -13,15 +11,14 @@ import * as AuthActions from './store/auth.actions';
   templateUrl: './auth.component.html',
   styleUrls: ['./auth.component.css'],
 })
-export class AuthComponent implements OnInit {
+export class AuthComponent implements OnInit, OnDestroy {
   isLoginMode = true;
   isLoading = false;
   error: string = null;
 
-  constructor(
-    private authService: AuthService,
-    private store: Store<fromApp.AppState>
-  ) {}
+  private storeSub: Subscription;
+
+  constructor(private store: Store<fromApp.AppState>) {}
 
   ngOnInit() {
     this.store.select('auth').subscribe((authState) => {
@@ -35,7 +32,7 @@ export class AuthComponent implements OnInit {
   }
 
   onHandleError() {
-    this.error = null;
+    this.store.dispatch(new AuthActions.ClearError());
   }
 
   onSubmit(form: NgForm) {
@@ -45,8 +42,6 @@ export class AuthComponent implements OnInit {
     const email = form.value.email;
     const password = form.value.password;
 
-    let authObs: Observable<AuthResponseData>;
-
     this.isLoading = true;
 
     if (this.isLoginMode) {
@@ -54,9 +49,17 @@ export class AuthComponent implements OnInit {
         new AuthActions.LoginStart({ email: email, password: password })
       );
     } else {
-      authObs = this.authService.signup(email, password);
+      this.store.dispatch(
+        new AuthActions.SignupStart({ email: email, password: password })
+      );
     }
 
     form.reset();
+  }
+
+  ngOnDestroy() {
+    if (this.storeSub) {
+      this.storeSub.unsubscribe();
+    }
   }
 }
